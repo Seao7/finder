@@ -109,8 +109,8 @@ def get_places(city, api_key, search_term, status_placeholder=None):
 
                 # Extract additional fields
                 phone = details_data.get("nationalPhoneNumber", "N/A")
-                rating = details_data.get("rating", "N/A")
-                rating_count = details_data.get("userRatingCount", "N/A")
+                rating = details_data.get("rating", 0)
+                rating_count = details_data.get("userRatingCount", 0)
                 website = details_data.get("websiteUri", "N/A")
                 types = ", ".join(details_data.get("types", [])) if "types" in details_data else "N/A"
 
