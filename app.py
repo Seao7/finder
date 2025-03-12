@@ -61,79 +61,90 @@ st.markdown('<div class="subtitle">Search for any places across Indian cities an
 
 # Function to get places
 def get_places(city, api_key, search_term, status_placeholder=None):
-    """Fetch places names, addresses, and contact numbers for a given city."""
+    """Fetch place names, addresses, and contact numbers for a given city with pagination."""
     query = f"{search_term} in {city}"
     
     if status_placeholder:
-        status_placeholder.markdown(f"🔍 Searching for '{query}'...")
-    
+        status_placeholder.markdown(f"🔍 Searching for '{query}' in {city}...")
+
     search_url = "https://places.googleapis.com/v1/places:searchText"
-    search_payload = {
-        "textQuery": query
-    }
+    
+    search_payload = {"textQuery": query}
     search_headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": api_key,
         "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.id"
     }
 
-    try:
-        search_response = requests.post(search_url, json=search_payload, headers=search_headers)
-        search_data = search_response.json()
-
-        if "places" not in search_data:
-            if status_placeholder:
-                status_placeholder.markdown(f"❌ No results found for {city} or API error.")
-            return []
-
-        results = []
-        if status_placeholder:
-            status_placeholder.markdown(f"📍 Found {len(search_data['places'])} places in {city}. Fetching details...")
-        
-        for place in search_data["places"]:
-            place_id = place["id"]
-            name = place["displayName"]['text']
-            address = place["formattedAddress"]
-
-            details_url = f"https://places.googleapis.com/v1/places/{place_id}"
-            details_headers = {
-                "Content-Type": "application/json",
-                "X-Goog-Api-Key": api_key,
-                "X-Goog-FieldMask": "displayName,formattedAddress,nationalPhoneNumber,rating,userRatingCount,websiteUri,types"
-            }
-            
-            details_response = requests.get(details_url, headers=details_headers)
-            details_data = details_response.json()
-
-            # Get additional fields if available
-            phone = details_data.get("nationalPhoneNumber", "N/A")
-            rating = details_data.get("rating", "N/A")
-            rating_count = details_data.get("userRatingCount", "N/A")
-            website = details_data.get("websiteUri", "N/A")
-            types = ", ".join(details_data.get("types", [])) if "types" in details_data else "N/A"
-
-            results.append({
-                "City": city, 
-                "Name": name, 
-                "Address": address, 
-                "Phone": phone,
-                "Rating": rating,
-                "Rating Count": rating_count,
-                "Website": website,
-                "Types": types
-            })
-            
-            time.sleep(0.5)  # To avoid hitting rate limits
-
-        if status_placeholder:
-            status_placeholder.markdown(f"✅ Successfully fetched {len(results)} places in {city}.")
-        
-        return results
+    results = []
     
-    except Exception as e:
-        if status_placeholder:
-            status_placeholder.markdown(f"❌ Error while processing {city}: {str(e)}")
-        return []
+    while True:
+        try:
+            search_response = requests.post(search_url, json=search_payload, headers=search_headers)
+            search_data = search_response.json()
+            
+            if "places" not in search_data:
+                if status_placeholder:
+                    status_placeholder.markdown(f"❌ No results found for {city} or API error.")
+                return results  # Return any previously fetched results
+            
+            if status_placeholder:
+                status_placeholder.markdown(f"📍 Found {len(search_data['places'])} places in {city}. Fetching details...")
+
+            for place in search_data["places"]:
+                place_id = place["id"]
+                name = place["displayName"]['text']
+                address = place["formattedAddress"]
+
+                # Fetch additional details
+                details_url = f"https://places.googleapis.com/v1/places/{place_id}"
+                details_headers = {
+                    "Content-Type": "application/json",
+                    "X-Goog-Api-Key": api_key,
+                    "X-Goog-FieldMask": "displayName,formattedAddress,nationalPhoneNumber,rating,userRatingCount,websiteUri,types"
+                }
+                
+                details_response = requests.get(details_url, headers=details_headers)
+                details_data = details_response.json()
+
+                # Extract additional fields
+                phone = details_data.get("nationalPhoneNumber", "N/A")
+                rating = details_data.get("rating", "N/A")
+                rating_count = details_data.get("userRatingCount", "N/A")
+                website = details_data.get("websiteUri", "N/A")
+                types = ", ".join(details_data.get("types", [])) if "types" in details_data else "N/A"
+
+                results.append({
+                    "City": city, 
+                    "Name": name, 
+                    "Address": address, 
+                    "Phone": phone,
+                    "Rating": rating,
+                    "Rating Count": rating_count,
+                    "Website": website,
+                    "Types": types
+                })
+
+                time.sleep(0.5)  # To avoid hitting rate limits
+
+            # Handle pagination
+            next_page_token = search_data.get("nextPageToken", None)
+            if not next_page_token:
+                break  # No more results, exit loop
+
+            time.sleep(2)  # Required delay before making the next request
+            search_payload["pageToken"] = next_page_token  # Update payload with the next page token
+        
+        except Exception as e:
+            if status_placeholder:
+                status_placeholder.markdown(f"❌ Error while processing {city}: {str(e)}")
+            break  # Stop processing in case of an error
+
+    if status_placeholder:
+        status_placeholder.markdown(f"✅ Successfully fetched {len(results)} places in {city}.")
+
+    
+    return results
 
 # Function to create a download link for dataframe
 def get_download_link(df, filename, text):
