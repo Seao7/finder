@@ -66,20 +66,24 @@ def get_places(city, api_key, search_term, status_placeholder=None):
     
     if status_placeholder:
         status_placeholder.markdown(f"🔍 Searching for '{query}' in {city}...")
-
     search_url = "https://places.googleapis.com/v1/places:searchText"
     
     search_payload = {"textQuery": query}
     search_headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": api_key,
-        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.id"
+        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.id,nextPageToken"
     }
-
     results = []
     
-    while True:
+    page_count = 1
+    max_pages = 5  # Set a reasonable limit to avoid excessive API calls
+    
+    while page_count <= max_pages:
         try:
+            if status_placeholder:
+                status_placeholder.markdown(f"📄 Fetching page {page_count}...")
+                
             search_response = requests.post(search_url, json=search_payload, headers=search_headers)
             search_data = search_response.json()
             
@@ -88,14 +92,14 @@ def get_places(city, api_key, search_term, status_placeholder=None):
                     status_placeholder.markdown(f"❌ No results found for {city} or API error.")
                 return results  # Return any previously fetched results
             
+            place_count = len(search_data['places'])
             if status_placeholder:
-                status_placeholder.markdown(f"📍 Found {len(search_data['places'])} places in {city}. Fetching details...")
-
+                status_placeholder.markdown(f"📍 Found {place_count} places on page {page_count}. Fetching details...")
+            
             for place in search_data["places"]:
                 place_id = place["id"]
                 name = place["displayName"]['text']
                 address = place["formattedAddress"]
-
                 # Fetch additional details
                 details_url = f"https://places.googleapis.com/v1/places/{place_id}"
                 details_headers = {
@@ -106,14 +110,12 @@ def get_places(city, api_key, search_term, status_placeholder=None):
                 
                 details_response = requests.get(details_url, headers=details_headers)
                 details_data = details_response.json()
-
                 # Extract additional fields
                 phone = details_data.get("nationalPhoneNumber", "N/A")
                 rating = details_data.get("rating", 0)
                 rating_count = details_data.get("userRatingCount", 0)
                 website = details_data.get("websiteUri", "N/A")
                 types = ", ".join(details_data.get("types", [])) if "types" in details_data else "N/A"
-
                 results.append({
                     "City": city, 
                     "Name": name, 
@@ -124,25 +126,28 @@ def get_places(city, api_key, search_term, status_placeholder=None):
                     "Website": website,
                     "Types": types
                 })
-
                 time.sleep(0.5)  # To avoid hitting rate limits
-
+            
             # Handle pagination
-            next_page_token = search_data.get("nextPageToken", None)
+            next_page_token = search_data.get("nextPageToken")
             if not next_page_token:
+                if status_placeholder:
+                    status_placeholder.markdown(f"ℹ️ No more pages available after page {page_count}.")
                 break  # No more results, exit loop
-
-            time.sleep(2)  # Required delay before making the next request
-            search_payload["pageToken"] = next_page_token  # Update payload with the next page token
+                
+            page_count += 1
+            if status_placeholder:
+                status_placeholder.markdown(f"⏳ Waiting before fetching next page...")
+            time.sleep(2)  # Required delay before making the next request with page token
+            search_payload = {"textQuery": query, "pageToken": next_page_token}  # Create new payload with token
         
         except Exception as e:
             if status_placeholder:
-                status_placeholder.markdown(f"❌ Error while processing {city}: {str(e)}")
+                status_placeholder.markdown(f"❌ Error while processing page {page_count} for {city}: {str(e)}")
             break  # Stop processing in case of an error
-
+    
     if status_placeholder:
-        status_placeholder.markdown(f"✅ Successfully fetched {len(results)} places in {city}.")
-
+        status_placeholder.markdown(f"✅ Successfully fetched {len(results)} places in {city} across {page_count} pages.")
     
     return results
 
