@@ -92,7 +92,7 @@ def get_places(city, api_key, search_term, status_placeholder=None):
         
         for place in search_data["places"]:
             place_id = place["id"]
-            name = place["displayName"]
+            name = place["displayName"]['text']
             address = place["formattedAddress"]
 
             details_url = f"https://places.googleapis.com/v1/places/{place_id}"
