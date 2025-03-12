@@ -367,13 +367,13 @@ with results_container:
                 if city_filter:
                     df = df[df['City'].isin(city_filter)]
         
-        with filter_col2:
-            # Rating filter
-            if 'Rating' in df.columns and df['Rating'].dtype != object:
-                min_rating = float(df['Rating'].min()) if not pd.isna(df['Rating'].min()) else 0
-                max_rating = float(df['Rating'].max()) if not pd.isna(df['Rating'].max()) else 5
-                rating_filter = st.slider("Minimum Rating:", min_value=0.0, max_value=5.0, value=min_rating, step=0.5)
-                df = df[df['Rating'] >= rating_filter]
+        # with filter_col2:
+        #     # Rating filter
+        #     if 'Rating' in df.columns and df['Rating'].dtype != object:
+        #         min_rating = float(df['Rating'].min()) if not pd.isna(df['Rating'].min()) else 0
+        #         max_rating = float(df['Rating'].max()) if not pd.isna(df['Rating'].max()) else 5
+        #         rating_filter = st.slider("Minimum Rating:", min_value=0.0, max_value=5.0, value=min_rating, step=0.5)
+        #         df = df[df['Rating'] >= rating_filter]
         
         # Sort options
         sort_col1, sort_col2 = st.columns(2)
