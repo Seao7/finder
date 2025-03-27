@@ -77,7 +77,7 @@ def get_places(city, api_key, search_term, status_placeholder=None):
     results = []
     
     page_count = 1
-    max_pages = 5  # Set a reasonable limit to avoid excessive API calls
+    max_pages = 50 # Set a reasonable limit to avoid excessive API calls
     
     while page_count <= max_pages:
         try:
